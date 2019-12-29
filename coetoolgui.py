@@ -97,7 +97,13 @@ class CoetoolGui(QMainWindow):
                 self.printAct.setEnabled(True)
                 self.fitToWindowAct.setEnabled(True)
                 self.updateActions()
+
                 self.saveCoeAct.setEnabled(True)
+                self.save8BitGrayscaleCoeAct.setEnabled(True)
+                self.save64BitPackedCoeAct.setEnabled(True)
+
+                self.save8BitGrayscaleCAct.setEnabled(True)
+                self.save64BitPackedCAct.setEnabled(True)
                 
                 if not self.fitToWindowAct.isChecked():
                     self.imageLabel.adjustSize()
@@ -105,7 +111,13 @@ class CoetoolGui(QMainWindow):
                 tmpcoe = tempfile.NamedTemporaryFile(suffix='.coe', delete=False)
                 tmpcoe.close()
                 self.conversion = CoeConverter(fileName)
+
                 self.conversion.createCoe(tmpcoe.name)
+                # self.conversion.create8BitGrayscaleCoeAct(tmpcoe.name)
+                # self.conversion.create64BitPackedCoeAct(tmpcoe.name)
+
+                # self.conversion.create8BitGrayscaleCAct(tmpcoe.name)
+                # self.conversion.create64BitPackedCAct(tmpcoe.name)
                 
                 with open(tmpcoe.name, encoding='utf-8') as coefile:
                     contents = coefile.read()
@@ -147,7 +159,31 @@ class CoetoolGui(QMainWindow):
                 QDir.currentPath(), 'COE file (*.coe)')
         self.conversion.createCoe(coefilename+'.coe')
         self.statusBar().showMessage(coefilename+'.coe written to disk')
-    
+
+    def save8BitGrayscaleCoe(self):
+        coefilename, filter = QFileDialog.getSaveFileName(self, 'Save .coe file',
+                QDir.currentPath(), 'COE file (*.coe)')
+        self.conversion.create8BitGrayscaleCoe(coefilename+'.coe')
+        self.statusBar().showMessage(coefilename+'.coe written to disk')
+
+    def save64BitPackedCoe(self):
+        coefilename, filter = QFileDialog.getSaveFileName(self, 'Save .coe file',
+                QDir.currentPath(), 'COE file (*.coe)')
+        self.conversion.create64BitPackedCoe(coefilename+'.coe')
+        self.statusBar().showMessage(coefilename+'.coe written to disk')
+
+    def save8BitGrayscaleC(self):
+        coefilename, filter = QFileDialog.getSaveFileName(self, 'Save .c file',
+                QDir.currentPath(), 'C file (*.c)')
+        self.conversion.create8BitGrayscaleC(coefilename+'.c')
+        self.statusBar().showMessage(coefilename+'.c written to disk')
+
+    def save64BitPackedC(self):
+        coefilename, filter = QFileDialog.getSaveFileName(self, 'Save .c file',
+                QDir.currentPath(), 'C file (*.c)')
+        self.conversion.create64BitPackedC(coefilename+'.c')
+        self.statusBar().showMessage(coefilename+'.c written to disk')
+
     def saveImg(self):
         filters='BMP image (*.bmp);;JPG image (*.jpg);; PNG image (*.png)'
         imgfilename, selected_filter = QFileDialog.getSaveFileName(self, 'Save image file',
@@ -172,6 +208,11 @@ class CoetoolGui(QMainWindow):
                 enabled=False, triggered=self.print_)
         
         self.saveCoeAct = QAction("Save .coe...", self, enabled=False, triggered=self.saveCoe)
+        self.save64BitPackedCoeAct = QAction("Save 64-bit Packed Coe format", self, enabled=False, triggered=self.save64BitPackedCoe)
+        self.save8BitGrayscaleCoeAct = QAction("Save 8b Grayscale Coe format", self, enabled=False, triggered=self.save8BitGrayscaleCoe)
+
+        self.save8BitGrayscaleCAct = QAction("Save 8b Grayscale C format", self, enabled=False, triggered=self.save8BitGrayscaleC)             
+        self.save64BitPackedCAct = QAction("Save 64-bit Packed C format", self, enabled=False, triggered=self.save64BitPackedC)
         
         self.saveImgAct = QAction("Save image...", self, enabled=False, triggered=self.saveImg)
         
@@ -201,6 +242,12 @@ class CoetoolGui(QMainWindow):
         self.fileMenu.addAction(self.printAct)
         self.fileMenu.addSeparator()
         self.fileMenu.addAction(self.saveCoeAct)
+        self.fileMenu.addAction(self.save8BitGrayscaleCoeAct) 
+        self.fileMenu.addAction(self.save64BitPackedCoeAct)
+        self.fileMenu.addSeparator()
+        self.fileMenu.addAction(self.save8BitGrayscaleCAct) 
+        self.fileMenu.addAction(self.save64BitPackedCAct)
+        self.fileMenu.addSeparator()
         self.fileMenu.addAction(self.saveImgAct)
         self.fileMenu.addSeparator()
         self.fileMenu.addAction(self.exitAct)

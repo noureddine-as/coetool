@@ -8,6 +8,7 @@ Doc...
 from PyQt5 import QtCore, QtGui
 from PIL import Image
 import tempfile
+import numpy as np
 
 
 class CoeConverter:
@@ -62,25 +63,137 @@ class CoeConverter:
             return key_value
 
 
+    # def createCoe(self, out_file):
+    #     with open(out_file, encoding='utf-8', mode='wt') as out_coe_file:
+    #         #out_coe_file.write('; VGA Memory Map\n; .COE file with hex coefficients\n; Height: '+self.height+', Width: '+self.width+'\n\nmemory_initialization_radix=16;\n')
+    #         #out_coe_file.write('memory_initialization_vector=\n')
+    #         # out_coe_file.write('; Image Memory Map\n; .COE file with hex coefficients\n; Height: '+self.height+', Width: '+self.width+'\n\nmemory_initialization_radix=2;\n')
+    #         out_coe_file.write('memory_initialization_radix=2;\n')
+    #         out_coe_file.write('memory_initialization_vector=\n')
+           
+    #         for i,b in enumerate(self.imgbytes):
+    #             # if i > 0 and i % 16 == 0:           #TO-DO check if necessary, check in FPGA
+    #             #     out_coe_file.write('\n')
+    #             # if i == len(self.imgbytes)-1:
+    #             #     out_coe_file.write("{0:b}".format(((b[0] >> 4) << 8) + ((b[1] >> 4)<<4) + (b[2] >> 4)))
+    #             # else: 
+    #                 #out_coe_file.write(b+',')
+    #             out_coe_file.write("{0:b}".format(((b[0] >> 4) << 8) + ((b[1] >> 4)<<4) + (b[2] >> 4))+' ')
+
+    #         out_coe_file.write(';')
+
     def createCoe(self, out_file):
         with open(out_file, encoding='utf-8', mode='wt') as out_coe_file:
-            #out_coe_file.write('; VGA Memory Map\n; .COE file with hex coefficients\n; Height: '+self.height+', Width: '+self.width+'\n\nmemory_initialization_radix=16;\n')
-            #out_coe_file.write('memory_initialization_vector=\n')
-            out_coe_file.write('; Image Memory Map\n; .COE file with hex coefficients\n; Height: '+self.height+', Width: '+self.width+'\n\nmemory_initialization_radix=10;\n')
+           out_coe_file.write('memory_initialization_radix=2;\n')
             out_coe_file.write('memory_initialization_vector=\n')
            
             for i,b in enumerate(self.imgbytes):
-                if i > 0 and i % 16 == 0:           #TO-DO check if necessary, check in FPGA
-                    out_coe_file.write('\n')
-                if i == len(self.imgbytes)-1:
-                    out_coe_file.write("%s,%s,%s" %(b[0],b[1],b[2]))
-                else: 
-                    #out_coe_file.write(b+',')
-                    out_coe_file.write("%s,%s,%s" %(b[0],b[1],b[2])+',')
+                out_coe_file.write("{0:012b}\n".format(((b[0] >> 4) << 8) + ((b[1] >> 4)<<4) + (b[2] >> 4)))
 
             out_coe_file.write(';')
-            
-            
+    
+    def create8BitGrayscaleCoe(self, out_file):
+        with open(out_file, encoding='utf-8', mode='wt') as out_coe_file:
+            out_coe_file.write('memory_initialization_radix=2;\n')
+            out_coe_file.write('memory_initialization_vector=\n')
+           
+            for i,b in enumerate(self.imgbytes):
+
+                grayscale_val = int(0.299*b[0] + 0.587*b[1] + 0.114*b[2])
+                out_coe_file.write("{0:08b} ".format( grayscale_val ))
+                
+                if grayscale_val > 255:
+                    printf("Incorrect computation !!!")
+                    exit()
+
+            out_coe_file.write(';')
+
+    def create8BitGrayscaleC(self, out_file):
+        with open(out_file, encoding='utf-8', mode='wt') as out_coe_file:
+            out_coe_file.write('uint8_t image_array[] = {\n\t')
+
+            for i,b in enumerate(self.imgbytes):
+                grayscale_val = int(0.299*b[0] + 0.587*b[1] + 0.114*b[2])
+                out_coe_file.write("0x{0:02X}".format( grayscale_val )+', ')
+
+                if i % 16 == 0 :
+                    out_coe_file.write('\n')
+                
+                if grayscale_val > 255:
+                    printf("Incorrect computation !!!")
+                    exit()
+
+            out_coe_file.write('};')
+
+    # 64 bits In but only 8 bit Out
+    def create64BitPackedCoe(self, out_file):
+        with open(out_file, encoding='utf-8', mode='wt') as out_coe_file:
+            out_coe_file.write('memory_initialization_radix=16;\n')
+            out_coe_file.write('memory_initialization_vector=\n')
+           
+            i_packing = 0
+            packed_4B = np.uint32(0)
+            j = 0
+            str1 = ""
+            for i,b in enumerate(self.imgbytes):
+                grayscale_val = np.uint8(0.299*b[0] + 0.587*b[1] + 0.114*b[2])
+                packed_4B = packed_4B + np.uint32(grayscale_val <<  (i_packing*8))
+
+                if grayscale_val > 255:
+                    printf("Incorrect computation !!!")
+                    exit()
+
+                i_packing += 1
+                if i_packing == 4 :
+                    j += 1
+                    if j == 1 :
+                        str1 = "{0:08X}".format( packed_4B )
+                    if j == 2 :
+                        str1 = "{0:08X}".format( packed_4B ) + str1 + ' '
+                        out_coe_file.write(str1)
+                        str1 = ""
+                        j = 0
+                    i_packing = 0
+                    packed_4B = 0
+                
+            out_coe_file.write(';')
+
+    # 64 bits In but only 8 bit Out
+    # In C format
+    def create64BitPackedC(self, out_file):
+        with open(out_file, encoding='utf-8', mode='wt') as out_coe_file:
+            out_coe_file.write('uint64_t image_array[] = {\n\t')
+
+            i_packing = 0
+            packed_4B = np.uint32(0)
+            j = 0
+            str1 = ""
+            for i,b in enumerate(self.imgbytes):
+                grayscale_val = np.uint8(0.299*b[0] + 0.587*b[1] + 0.114*b[2])
+                packed_4B = packed_4B + np.uint32(grayscale_val <<  (i_packing*8))
+
+                if grayscale_val > 255:
+                    printf("Incorrect computation !!!")
+                    exit()
+
+                i_packing += 1
+                if i_packing == 4 :
+                    j += 1
+                    if j == 1 :
+                        str1 = "{0:08X}".format( packed_4B )
+                    if j == 2 :
+                        str1 = "{0:08X}".format( packed_4B ) + str1
+                        out_coe_file.write("0x"+str1+', ')
+                        if i % 16 == 0 :
+                            out_coe_file.write('\n\t')
+
+                        str1 = ""
+                        j = 0
+                    i_packing = 0
+                    packed_4B = 0
+                
+            out_coe_file.write('};')
+
     def exportImg(self, out_file, imgformat):
         self.img.save(out_file, imgformat, -1)
         print('file ' + out_file + ' written to disk')
